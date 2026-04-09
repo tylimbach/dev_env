@@ -38,17 +38,18 @@ keybinds clear-defaults=true {
         bind "Alt x" { TogglePaneFrames; }
 
         // Sessionizer - project picker (Alt+/)
-        // Requires: zellij-sessionizer.wasm plugin
-        // Install: curl -sL https://github.com/laperlej/zellij-sessionizer/releases/latest/download/zellij-sessionizer.wasm -o ~/.config/zellij/plugins/zellij-sessionizer.wasm
+        // Build: cd ~/dev/zellij-sessionizer && cargo build --release
+        //        cp target/wasm32-wasip1/release/zellij-sessionizer.wasm ~/AppData/Roaming/zellij/config/plugins/
+        // Keys: type to fuzzy-search, Up/Down or Ctrl+n/p to navigate, Enter to open, Esc to close, Ctrl+r to refresh
         bind "Alt /" {
-            LaunchOrFocusPlugin "file:~/.config/zellij/plugins/zellij-sessionizer.wasm" {
+            LaunchOrFocusPlugin "file:~/AppData/Roaming/zellij/config/plugins/zellij-sessionizer.wasm" {
                 floating true
                 move_to_focused_tab true
-                cwd "/"
-                root_dirs "~/dev;/mnt/c/Users/tlimbach/dev"
-                session_layout "dev"
-            }; 
-			SwitchToMode "Locked";
+                roots "~/dev;~/AppData/Local"
+                git_only "true"
+                layout "default"
+            };
+            SwitchToMode "Locked";
         }
 
         // Quit
@@ -362,6 +363,8 @@ load_plugins {
 theme "ansi"
 default_mode "locked"
 default_shell "zsh"
-default_layout "compact"
+default_layout "default"
 pane_frames false
-mouse_mode false  // Prevents escape sequences breaking Windows .exe TUIs in WSL
+mouse_mode true
+
+

@@ -69,10 +69,32 @@ zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'  # case-insensitive
 [[ -f "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
     source "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
 
-# ============================================================
+# Homebre# ============================================================
 # PATH
 # ============================================================
-# Homebrew
+if [[ "$_OS" == "mingw" ]] && command -v cygpath &>/dev/null; then
+    # Read System PATH
+    sys_path=$(reg.exe query \
+        "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" \
+        /v PATH 2>/dev/null \
+        | sed -n 's/.*REG_[A-Z_]*[[:space:]]*//p' | tr -d '\r\n')
+
+    # Read User PATH
+    user_path=$(reg.exe query "HKCU\Environment" /v PATH 2>/dev/null \
+        | sed -n 's/.*REG_[A-Z_]*[[:space:]]*//p' | tr -d '\r\n')
+
+    # Combine (User PATH takes priority, then System)
+    win_path="${user_path};${sys_path}"
+
+    if [[ -n "$win_path" ]]; then
+        posix_path=$(cygpath -up "$win_path" 2>/dev/null)
+        # Merge with any existing PATH entries, deduped
+        typeset -U path
+        path=( ${(s[:])posix_path} ${(s[:])PATH} )
+        export PATH="${(j[:])path}"
+    fi
+fi
+
 if [[ "$_OS" == "macos" && -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
 elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
