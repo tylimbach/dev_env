@@ -1,313 +1,203 @@
-# Editor configuration
+# Editor
 export EDITOR=nvim
 export VISUAL=nvim
 
-# Use emacs-style line editing (prevents vi-mode backspace issues)
-# Note: EDITOR=nvim causes zsh to default to vi-mode, which has different
-# backspace behavior (stops at insert point). This forces emacs mode.
+# ============================================================
+# Key bindings
+# ============================================================
+# Emacs-style editing (EDITOR=nvim would otherwise default to vi-mode)
 bindkey -e
+bindkey '^?'     backward-delete-char   # DEL
+bindkey '^H'     backward-delete-char   # BS
 
-# Explicit backspace bindings (ensures consistency across terminals)
-bindkey '^?' backward-delete-char  # DEL (0x7f) - most terminals
-bindkey '^H' backward-delete-char  # BS (0x08) - some terminals
+# Alt+Arrow word navigation (Alacritty, WezTerm, Windows Terminal, etc.)
+bindkey "^[[1;3C" forward-word          # Alt+Right
+bindkey "^[f"     forward-word          # Alt+F
+bindkey "^[[1;3D" backward-word         # Alt+Left
+bindkey "^[b"     backward-word         # Alt+B
 
-# Word navigation with Alt/Option + Arrow keys
-# Covers: Alacritty, WezTerm, Ghostty, iTerm2, Windows Terminal
-# Forward word
-bindkey "^[[1;3C" forward-word       # Alt+Right (standard)
-bindkey "^[f" forward-word           # Alt+F (escape sequence fallback)
-bindkey "^[^[[C" forward-word        # Esc+Right (some terminals)
-# Backward word
-bindkey "^[[1;3D" backward-word      # Alt+Left (standard)
-bindkey "^[b" backward-word          # Alt+B (escape sequence fallback)
-bindkey "^[^[[D" backward-word       # Esc+Left (some terminals)
-# Delete word backward (Alt+Backspace)
-bindkey "^[[1;3H" backward-kill-word # Alt+Backspace (some terminals)
-bindkey "^[^?" backward-kill-word    # Alt+Backspace (escape sequence, 0x7f)
-bindkey "^[^H" backward-kill-word    # Alt+Backspace (ctrl-h style, 0x08)
-bindkey "^[\x7f" backward-kill-word  # Alt+Backspace (literal DEL)
-bindkey "\e\x7f" backward-kill-word  # Alt+Backspace (escape + DEL)
-# Delete word forward (Alt+Delete / Alt+D)
-bindkey "^[d" kill-word              # Alt+D (delete word forward)
-bindkey "^[[3;3~" kill-word          # Alt+Delete (standard)
-bindkey "\e[3;3~" kill-word          # Alt+Delete (escape sequence)
-bindkey "^[^[[3~" kill-word          # Esc+Delete (some terminals)
+# Alt+Backspace / Alt+Delete word kill
+bindkey "^[^?"    backward-kill-word
+bindkey "^[\x7f"  backward-kill-word
+bindkey "\e\x7f"  backward-kill-word
+bindkey "^[d"     kill-word
+bindkey "^[[3;3~" kill-word
+bindkey "\e[3;3~" kill-word
 
-# History settings
+# ============================================================
+# History
+# ============================================================
 HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
 HISTSIZE=50000
 SAVEHIST=50000
-setopt hist_ignore_all_dups
-setopt share_history
-
-# Load modules & functions
-zmodload zsh/complist 2>/dev/null || true
-autoload -Uz compinit add-zsh-hook
+setopt hist_ignore_all_dups share_history
 
 # ============================================================
-# Completion setup (must run before compinit)
-# ============================================================
-
-# Add Homebrew completions to fpath (platform-specific)
-if [[ -d /home/linuxbrew/.linuxbrew/share/zsh/site-functions ]]; then
-    fpath=(/home/linuxbrew/.linuxbrew/share/zsh/site-functions $fpath)
-elif [[ -d /opt/homebrew/share/zsh/site-functions ]]; then
-    fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
-fi
-
-# Generate completions for tools that support it (cached in fpath)
-# Uses a marker file to skip checks entirely on subsequent shells
-_completion_cache="${ZDOTDIR:-$HOME}/.zsh/completions"
-[[ -d "$_completion_cache" ]] || mkdir -p "$_completion_cache"
-fpath=("$_completion_cache" $fpath)
-
-# Only check for missing completions if marker is missing or old (once per day)
-if [[ ! -f "$_completion_cache/.generated" ]] || [[ -z "$(find "$_completion_cache/.generated" -mtime 0 2>/dev/null)" ]]; then
-    () {
-        [[ ! -f "$_completion_cache/_rustup" ]] && command -v rustup &>/dev/null && \
-            rustup completions zsh > "$_completion_cache/_rustup" 2>/dev/null
-        [[ ! -f "$_completion_cache/_cargo" ]] && command -v rustup &>/dev/null && \
-            rustup completions zsh cargo > "$_completion_cache/_cargo" 2>/dev/null
-        [[ ! -f "$_completion_cache/_gh" ]] && command -v gh &>/dev/null && \
-            gh completion -s zsh > "$_completion_cache/_gh" 2>/dev/null
-        [[ ! -f "$_completion_cache/_docker" ]] && command -v docker &>/dev/null && \
-            docker completion zsh > "$_completion_cache/_docker" 2>/dev/null
-        [[ ! -f "$_completion_cache/_kubectl" ]] && command -v kubectl &>/dev/null && \
-            kubectl completion zsh > "$_completion_cache/_kubectl" 2>/dev/null
-        touch "$_completion_cache/.generated"
-    }
-fi
-
-# Fast, cached completion init
-# -C skips security check (faster), regenerate with: rm ~/.zcompdump; compinit
-COMPDUMP="${ZDOTDIR:-$HOME}/.zcompdump"
-# Check if dump exists and is less than 24 hours old (portable)
-if [[ -f "$COMPDUMP" ]] && [[ -n "$(find "$COMPDUMP" -mtime 0 2>/dev/null)" ]]; then
-    compinit -C -d "$COMPDUMP"
-else
-    compinit -d "$COMPDUMP"
-fi
-
-# Plugins (install via git clone into $ZDOTDIR/plugins/)
-# git clone https://github.com/zsh-users/zsh-autosuggestions $ZDOTDIR/plugins/zsh-autosuggestions
-# git clone https://github.com/zsh-users/zsh-syntax-highlighting $ZDOTDIR/plugins/zsh-syntax-highlighting
-if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
-    source "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
-fi
-
-# Syntax highlighting must be loaded last
-if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]; then
-    source "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-fi
-
-# Git info for prompt
-# Note: vcs_info fails for Windows worktrees accessed from WSL because the
-# .git file contains Windows paths. We use a custom function that detects
-# the filesystem and uses git.exe for /mnt/c paths.
-_git_branch_info() {
-    local git_cmd="git"
-    # Use git.exe for Windows filesystem (worktrees have Windows paths)
-    [[ "$PWD" == /mnt/[a-z]/* ]] && git_cmd="git.exe"
-    
-    # Fast path: check for .git directory/file before spawning process
-    [[ -e .git ]] || $git_cmd rev-parse --git-dir &>/dev/null || return
-    
-    local branch
-    branch=$($git_cmd rev-parse --abbrev-ref HEAD 2>/dev/null)
-    [[ -n "$branch" ]] && echo "($branch)"
-}
-
-# ============================================================
-# Platform detection (run once at startup)
+# Platform detection — $OSTYPE/$MSYSTEM are builtins, no subprocess
 # ============================================================
 _OS="unknown"
-case "$(uname -s)" in
-    Darwin)  _OS="macos" ;;
-    Linux)   [[ -n "$WSL_DISTRO_NAME" ]] && _OS="wsl" || _OS="linux" ;;
-    MINGW*|MSYS*) _OS="mingw" ;;
-esac
-
-# ============================================================
-# Windows MSYS/MinGW PATH setup
-# Windows is slow to inherit paths, so we set them explicitly
-# ============================================================
-if [[ "$_OS" == "mingw" ]]; then
-    USER_PATH="\
-/c/Users/tlimbach/.cargo/bin:\
-/c/Users/tlimbach/AppData/Local/Programs/Python/Launcher:\
-/c/Users/tlimbach/AppData/Local/Microsoft/WindowsApps:\
-/c/Users/tlimbach/.dotnet/tools:\
-/c/Users/tlimbach/AppData/Local/Microsoft/WinGet/Links:\
-/c/Users/tlimbach/AppData/Local/Programs/nu/bin:\
-/c/Users/tlimbach/AppData/Local/Programs/LuaJIT/bin:\
-/c/Users/tlimbach/AppData/Roaming/luarocks/bin:\
-/c/Users/tlimbach/AppData/Local/JetBrains/Toolbox/scripts:\
-/c/Users/tlimbach/cli/resvg:\
-/c/Users/tlimbach/cli/wezterm:\
-/c/Users/tlimbach/AppData/Roaming/npm:\
-/c/Users/tlimbach/AppData/Local/Programs/Zed/bin:\
-/c/Users/tlimbach/AppData/Local/PowerToys/DSCModules"
-
-    SYSTEM_PATH="\
-/c/Program Files/Alacritty:\
-/c/Program Files/Python311/Scripts:\
-/c/Program Files/Python311:\
-/c/Windows/system32:\
-/c/Windows:\
-/c/Windows/System32/Wbem:\
-/c/Windows/System32/WindowsPowerShell/v1.0:\
-/c/Windows/System32/OpenSSH:\
-/c/Program Files/dotnet:\
-/c/Program Files (x86)/Microsoft SQL Server/160/DTS/Binn:\
-/c/Program Files/PuTTY:\
-/c/Program Files/PowerShell/7:\
-/c/Program Files/Neovim/bin:\
-/c/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit:\
-/c/Strawberry/c/bin:\
-/c/Strawberry/perl/site/bin:\
-/c/Strawberry/perl/bin:\
-/c/Program Files/Neovide:\
-/c/Program Files/D2:\
-/c/Program Files/nodejs:\
-/c/Program Files/CMake/bin:\
-/c/Program Files/nu/bin"
-
-    # Git SDK must come first - git scripts prepend /mingw64/libexec/git-core
-    # which has a broken `git --exec-path`, so we need /mingw64/bin before it
-    GIT_SDK_PATH="/mingw64/bin:/usr/bin"
-
-    PATH="${GIT_SDK_PATH}:${USER_PATH}:${SYSTEM_PATH}"
-    export PATH
-fi
-
-if [[ "$_OS" == "wsl" ]]; then
-	hash -d "w"="/mnt/c/Users/tlimbach"
-fi
-
-# Prompt
-_prompt_precmd() {
-    local git_info=$(_git_branch_info)
-    local ts="%D{%H:%M:%S}"
-    local os_indicator=""
-    [[ "$_OS" == "wsl" ]] && os_indicator="%F{magenta}[WSL]%f "
-    PS1="${os_indicator}%F{green}${ts}%f %F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f ${git_info}
-$ "
-}
-
-add-zsh-hook precmd _prompt_precmd
-
-# ============================================================
-# Zellij helpers (manual rename functions)
-# ============================================================
-if [[ -n $ZELLIJ ]]; then
-    # Manual rename functions
-    function zpr() { zellij action rename-pane "$1"; }
-    function ztr() { zellij action rename-tab "$1"; }
+if   [[ -n "$WSL_DISTRO_NAME" ]];                              then _OS="wsl"
+elif [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* || -n "$MSYSTEM" ]]; then _OS="mingw"
+elif [[ "$OSTYPE" == darwin* ]];                               then _OS="macos"
+elif [[ "$OSTYPE" == linux* ]];                                then _OS="linux"
 fi
 
 # ============================================================
-# Homebrew (platform-specific paths)
+# Completion
 # ============================================================
+autoload -Uz compinit
+zmodload zsh/complist
+
+# Drop generated completions here (created once manually):
+#   rustup completions zsh        > ~/.zsh/completions/_rustup
+#   rustup completions zsh cargo  > ~/.zsh/completions/_cargo
+#   gh completion -s zsh          > ~/.zsh/completions/_gh
+_comp_dir="${ZDOTDIR:-$HOME}/.zsh/completions"
+[[ -d "$_comp_dir" ]] || mkdir -p "$_comp_dir"
+fpath=("$_comp_dir" $fpath)
+
+# -C skips the security check and uses the cached dump (fast).
+# To force a full rebuild: rm ~/.zcompdump && exec zsh
+compinit -C
+
+zstyle ':completion:*' menu select          # arrow-key navigable menu
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'  # case-insensitive
+
+# ============================================================
+# Plugins
+# ============================================================
+[[ -f "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+    source "${ZDOTDIR:-$HOME/.config/zsh}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+
+# ============================================================
+# PATH
+# ============================================================
+# Homebrew
 if [[ "$_OS" == "macos" && -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
 elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
-# Rust/Cargo (non-mingw only; mingw sets paths explicitly above)
-[[ "$_OS" != "mingw" && -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
-
-# Rustup via Homebrew (WSL/Linux)
+# Cargo / Rustup (mingw gets these via Windows PATH)
+[[ "$_OS" != "mingw" && -d "$HOME/.cargo/bin" ]] && \
+    export PATH="$HOME/.cargo/bin:$PATH"
 [[ "$_OS" != "mingw" && -d /home/linuxbrew/.linuxbrew/opt/rustup/bin ]] && \
     export PATH="/home/linuxbrew/.linuxbrew/opt/rustup/bin:$PATH"
 
-# FZF (platform-specific loading)
+# ============================================================
+# FZF
+# ============================================================
 if [[ "$_OS" == "mingw" ]]; then
-    # Windows: use fzf's native zsh integration
-    command -v fzf &>/dev/null && source <(fzf --zsh)
+    # Cache the init script — process substitution is slow on Windows.
+    # Delete ~/.zsh/fzf-init.zsh to regenerate after a fzf upgrade.
+    _fzf_init="${ZDOTDIR:-$HOME}/.zsh/fzf-init.zsh"
+    if command -v fzf &>/dev/null; then
+        [[ ! -f "$_fzf_init" ]] && fzf --zsh > "$_fzf_init" 2>/dev/null
+        [[ -f "$_fzf_init" ]] && source "$_fzf_init"
+    fi
 else
-    # Unix: use sourced files
     [[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
 fi
 
 # ============================================================
-# Theme switching (Gruvbox dark/light)
+# Prompt (with git branch)
 # ============================================================
+_git_branch_info() {
+    local git_cmd="git"
+    [[ "$_OS" == "wsl" && "$PWD" == /mnt/[a-z]/* ]] && git_cmd="git.exe"
+    # Fast path: avoid spawning git when not in a repo
+    [[ -e .git ]] || $git_cmd rev-parse --git-dir &>/dev/null 2>&1 || return
+    local branch
+    branch=$($git_cmd rev-parse --abbrev-ref HEAD 2>/dev/null)
+    [[ -n "$branch" ]] && echo "($branch) "
+}
 
-# Alacritty config location varies by platform
+autoload -Uz add-zsh-hook
+_prompt_precmd() {
+    local git_info=$(_git_branch_info)
+    local os_indicator=""
+    [[ "$_OS" == "wsl" ]] && os_indicator="%F{magenta}[WSL]%f "
+    PS1="${os_indicator}%F{green}%D{%H:%M:%S}%f %F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f ${git_info}
+$ "
+}
+add-zsh-hook precmd _prompt_precmd
+
+# ============================================================
+# Zellij helpers
+# ============================================================
+if [[ -n "$ZELLIJ" ]]; then
+    function zpr() { zellij action rename-pane "$1"; }
+    function ztr() { zellij action rename-tab "$1"; }
+fi
+
+# ============================================================
+# refresh — pull fresh Windows registry PATH into current shell
+# ============================================================
+# Run after installing tools that add themselves to the Windows PATH
+# (e.g. ollama, winget packages). reg.exe reads the registry directly
+# in ~50ms; no PowerShell startup overhead.
+refresh() {
+    if [[ "$_OS" == "mingw" ]] && command -v cygpath &>/dev/null; then
+        local sys_path user_path win_path posix_path
+        sys_path=$(reg.exe query \
+            "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" \
+            /v PATH 2>/dev/null | sed -n 's/.*REG_[A-Z_]*[[:space:]]*//p' | tr -d '\r\n')
+        user_path=$(reg.exe query "HKCU\Environment" /v PATH 2>/dev/null \
+            | sed -n 's/.*REG_[A-Z_]*[[:space:]]*//p' | tr -d '\r\n')
+        win_path="${sys_path};${user_path}"
+        posix_path=$(cygpath -up "$win_path" 2>/dev/null)
+        if [[ -n "$posix_path" ]]; then
+            local -aU merged
+            merged=(${(s[:])posix_path} ${(s[:])PATH})
+            export PATH="${(j[:])merged}"
+        fi
+    fi
+    hash -r
+    echo "PATH refreshed"
+}
+
+# ============================================================
+# Theme switching (Gruvbox dark / light)
+# ============================================================
 case "$_OS" in
     wsl)   ALACRITTY_CONFIG="/mnt/c/Users/tlimbach/AppData/Roaming/alacritty" ;;
     mingw) ALACRITTY_CONFIG="$APPDATA/alacritty" ;;
-    macos) ALACRITTY_CONFIG="$HOME/.config/alacritty" ;;
     *)     ALACRITTY_CONFIG="$HOME/.config/alacritty" ;;
 esac
 
-# Load LS_COLORS based on current theme (WSL only - others handle colors natively)
 _load_ls_colors() {
     [[ "$_OS" != "wsl" ]] && return
-    local theme="${1:-dark}"
     command -v dircolors &>/dev/null || return
-
-    if [[ -f ~/.dircolors.$theme ]]; then
-        eval "$(dircolors -b ~/.dircolors.$theme)"
-    elif [[ -f ~/.dircolors ]]; then
-        eval "$(dircolors -b ~/.dircolors)"
-    fi
+    local f="$HOME/.dircolors.${1:-dark}"
+    [[ -f "$f" ]] || f="$HOME/.dircolors"
+    [[ -f "$f" ]] && eval "$(dircolors -b "$f")"
 }
 
-# Switch to dark theme
 dark() {
-    if [[ -f "$ALACRITTY_CONFIG/themes/gruvbox_dark.toml" ]]; then
+    [[ -f "$ALACRITTY_CONFIG/themes/gruvbox_dark.toml" ]] && \
         cp "$ALACRITTY_CONFIG/themes/gruvbox_dark.toml" "$ALACRITTY_CONFIG/alacritty.toml"
-    fi
-    export NVIM_THEME="dark"
-    _load_ls_colors dark
-    echo "Switched to gruvbox dark"
+    export NVIM_THEME="dark"; _load_ls_colors dark
 }
 
-# Switch to light theme
 light() {
-    if [[ -f "$ALACRITTY_CONFIG/themes/gruvbox_light.toml" ]]; then
+    [[ -f "$ALACRITTY_CONFIG/themes/gruvbox_light.toml" ]] && \
         cp "$ALACRITTY_CONFIG/themes/gruvbox_light.toml" "$ALACRITTY_CONFIG/alacritty.toml"
-    fi
-    export NVIM_THEME="light"
-    _load_ls_colors light
-    echo "Switched to gruvbox light"
+    export NVIM_THEME="light"; _load_ls_colors light
 }
 
-# Detect current theme on shell startup and load appropriate LS_COLORS
-# Reads NVIM_THEME from alacritty config to avoid grepping entire file
-_detect_theme() {
-    local theme="dark"
-    
-    if [[ -f "$ALACRITTY_CONFIG/alacritty.toml" ]]; then
-        # Extract NVIM_THEME value from config (fast: stops at first match)
-        local detected
-        detected=$(sed -n 's/^NVIM_THEME *= *"\([^"]*\)".*/\1/p' "$ALACRITTY_CONFIG/alacritty.toml" 2>/dev/null | head -1)
-        [[ -n "$detected" ]] && theme="$detected"
-    fi
-    
-    _load_ls_colors "$theme"
-    export NVIM_THEME="$theme"
-}
-_detect_theme
-
-# ============================================================
-# Aliases
-# ============================================================
-# WSL needs explicit color flag; macOS/mingw handle it natively
-[[ "$_OS" == "wsl" || "$_OS" == "linux" ]] && alias ls='ls --color=auto'
-
-# ============================================================
-# WSL .exe completions
-# ============================================================
-# Note: git.exe completions are intentionally NOT set up here.
-# The _git completion function calls `git` internally to query branches,
-# remotes, etc. Using WSL git on Windows filesystem is ~7x slower than
-# git.exe, making completions painfully slow. Better to use basic file
-# completion than wait 800ms+ per tab press.
-#
-# nvim.exe completions work fine since _nvim only completes filenames.
-if [[ "$_OS" == "wsl" ]]; then
-    compdef nvim.exe=nvim 2>/dev/null
+# Detect theme at startup
+if [[ -f "$ALACRITTY_CONFIG/alacritty.toml" ]]; then
+    _t=$(sed -n 's/^NVIM_THEME *= *"\([^"]*\)".*/\1/p' "$ALACRITTY_CONFIG/alacritty.toml" 2>/dev/null | head -1)
+    export NVIM_THEME="${_t:-dark}"; unset _t
+else
+    export NVIM_THEME="dark"
 fi
+_load_ls_colors "$NVIM_THEME"
+
+# ============================================================
+# Misc
+# ============================================================
+[[ "$_OS" == "wsl" ]] && hash -d "w"="/mnt/c/Users/tlimbach"
+[[ "$_OS" == "wsl" || "$_OS" == "linux" ]] && alias ls='ls --color=auto'
+[[ "$_OS" == "wsl" ]] && compdef nvim.exe=nvim 2>/dev/null
